@@ -1,0 +1,147 @@
+---
+// Simple chat UI that connects to the backend WebSocket server.
+---
+
+<div class="chat-root">
+  <section class="panel">
+    <h2>Simple Chat</h2>
+    <div class="row">
+      <div class="col">
+        <h3>Create User</h3>
+        <input id="createId" placeholder="numeric id" />
+        <input id="createName" placeholder="name" />
+        <input id="createPhone" placeholder="phone (optional)" />
+        <button id="btnCreate">Create</button>
+      </div>
+      <div class="col">
+        <h3>Login</h3>
+        <input id="loginId" placeholder="your numeric id" />
+        <button id="btnLogin">Login</button>
+        <div id="loginStatus"></div>
+      </div>
+    </div>
+
+    <div class="messaging">
+      <h3>Messages</h3>
+      <ul id="messages"></ul>
+      <div class="send-row">
+        <input id="toId" placeholder="to id" />
+        <input id="msgText" placeholder="message" />
+        <button id="btnSend">Send</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="btnConnect">Connect WS</button>
+      <button id="btnClose">Close WS</button>
+      <div id="wsStatus">Not connected</div>
+    </div>
+  </section>
+</div>
+
+<style>
+.chat-root { max-width: 900px; margin: 24px auto; font-family: Inter, system-ui, sans-serif; }
+.panel { padding: 16px; border-radius: 8px; border: 1px solid #e6e6e6; background: #fff; }
+.row { display:flex; gap: 16px; }
+.col { flex:1; }
+input { display:block; margin:8px 0; padding:8px; width:100%; box-sizing:border-box }
+button { padding:8px 12px; margin-top:8px }
+.messaging { margin-top:16px }
+ul#messages { min-height:120px; max-height:320px; overflow:auto; border:1px solid #eee; padding:8px; list-style:none }
+.send-row { display:flex; gap:8px; margin-top:8px }
+.send-row input { flex:1 }
+.controls { margin-top:12px }
+#wsStatus { margin-top:8px; color:#444 }
+</style>
+
+<script type="module" client:load>
+// Client-side WebSocket chat logic
+let ws = null;
+let currentUser = null;
+const messagesEl = document.getElementById('messages');
+const wsStatus = document.getElementById('wsStatus');
+
+function append(msg, cls) {
+  const li = document.createElement('li');
+  li.textContent = msg;
+  if (cls) li.className = cls;
+  messagesEl.appendChild(li);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function connect() {
+  if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+  const url = (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.hostname + ':8080';
+  try {
+    ws = new WebSocket(url);
+  } catch (e) {
+    append('ERR: could not construct WebSocket: ' + e.message);
+    return;
+  }
+
+  ws.onopen = () => {
+    wsStatus.textContent = 'Connected to ' + url;
+    append('WS: connected');
+  };
+  ws.onmessage = (ev) => {
+    append('RECV: ' + ev.data);
+  };
+  ws.onclose = () => {
+    wsStatus.textContent = 'Closed';
+    append('WS: closed');
+  };
+  ws.onerror = (ev) => {
+    append('WS error');
+  };
+}
+
+function closeWs() {
+  if (!ws) return;
+  try { ws.close(); } catch (e) {}
+  ws = null;
+}
+
+function sendRaw(s) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    append('ERR: WebSocket not connected');
+    return;
+  }
+  ws.send(s);
+  append('SENT: ' + s);
+}
+
+// Create user
+document.getElementById('btnCreate').addEventListener('click', () => {
+  const id = document.getElementById('createId').value.trim();
+  const name = document.getElementById('createName').value.trim();
+  const phone = document.getElementById('createPhone').value.trim();
+  if (!id || !name) { append('Please provide numeric id and name'); return; }
+  sendRaw('CREATE:' + id + ':' + name + ':' + phone);
+});
+
+// Login
+document.getElementById('btnLogin').addEventListener('click', () => {
+  const id = document.getElementById('loginId').value.trim();
+  if (!id) { append('Please enter id to login'); return; }
+  sendRaw('LOGIN:' + id);
+  currentUser = id;
+  document.getElementById('loginStatus').textContent = 'Attempting login as ' + id;
+});
+
+// Send message
+document.getElementById('btnSend').addEventListener('click', () => {
+  const to = document.getElementById('toId').value.trim();
+  const text = document.getElementById('msgText').value.trim();
+  if (!currentUser) { append('Please login first'); return; }
+  if (!to || !text) { append('Provide recipient id and message'); return; }
+  sendRaw('MSG:' + currentUser + ':' + to + ':' + text);
+  document.getElementById('msgText').value = '';
+});
+
+// Connect/Close buttons
+document.getElementById('btnConnect').addEventListener('click', connect);
+document.getElementById('btnClose').addEventListener('click', closeWs);
+
+// Auto-connect on load
+connect();
+</script>
