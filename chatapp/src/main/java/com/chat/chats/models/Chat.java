@@ -1,6 +1,6 @@
 package com.chat.chats.models;
 
-public abstract class Chat {
+public class Chat {
     public int chatid;
     public String chat_name;
     public String created_at;

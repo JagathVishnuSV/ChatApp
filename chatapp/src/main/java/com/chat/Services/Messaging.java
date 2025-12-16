@@ -1,30 +1,31 @@
 package com.chat.Services;
 
 import com.chat.message.models.Message;
-import com.chat.message.repository.MessageRepositoryMongoDB;
-
 import java.util.List;
 
+/**
+ * Messaging coordinates sending messages using the WebSocket proxy and
+ * leverages Notification for targeted notifications. The real persistence
+ * is handled inside the WebSocket Real implementation to avoid duplicate saves.
+ */
 public class Messaging {
-    private final MessageRepositoryMongoDB messageRepository;
-    private final Notification notificationService;
+    private final WebSocket webSocket;
 
     public Messaging() {
-        this.messageRepository = new MessageRepositoryMongoDB();
-        this.notificationService = new Notification();
+        this.webSocket = new WebSocket();
     }
 
     public void sendMessage(Message message) {
-        // Save the message
-        messageRepository.save(message);
+        if (message == null) return;
+        // Delegate to WebSocket proxy which persists and broadcasts
+        webSocket.sendMessage(message);
 
-        // Notify the receiver
-        notificationService.sendNotification(String.valueOf(message.getSenderId()), "New message received!");
-
-        System.out.println("Message sent: " + message.getMessageContent());
+        // targeted notify example: notify sender that message was sent
+        Notification.getInstance().notifyUser(String.valueOf(message.getSenderId()), "Message sent: " + message.getMessageContent());
     }
 
     public List<Message> getAllMessages() {
-        return messageRepository.findAll();
+        // For simplicity reuse repository here if needed
+        return new com.chat.message.repository.MessageRepositoryMongoDB().findAll();
     }
 }
