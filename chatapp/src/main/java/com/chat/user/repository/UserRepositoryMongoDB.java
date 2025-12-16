@@ -18,25 +18,6 @@ public class UserRepositoryMongoDB implements UserRepository {
     }
 
     @Override
-    public User findById(String id) {
-        Document doc = collection.find(new Document("userid", id)).first();
-        if (doc == null) doc = collection.find(new Document("id", id)).first();
-        if (doc != null) {
-            Integer uid = doc.getInteger("userid");
-            int userid = uid != null ? uid : (doc.containsKey("id") ? Integer.parseInt(String.valueOf(doc.get("id"))) : 0);
-            return new User(userid,
-                    doc.getString("username"),
-                    doc.getString("phone_no"),
-                    doc.getString("profile_url"),
-                    doc.getString("end_to_end_Key"),
-                    doc.getString("created_at"),
-                    doc.getString("bio")
-            );
-        }
-        return null;
-    }
-
-    @Override
     public List<User> findAll() {
         List<User> users = new ArrayList<>();
         for (Document doc : collection.find()) {
@@ -96,6 +77,46 @@ public class UserRepositoryMongoDB implements UserRepository {
         if (doc != null) {
             Integer uid = doc.getInteger("userid");
             int userid = uid != null ? uid : 0;
+            return new User(userid,
+                    doc.getString("username"),
+                    doc.getString("phone_no"),
+                    doc.getString("profile_url"),
+                    doc.getString("end_to_end_Key"),
+                    doc.getString("created_at"),
+                    doc.getString("bio")
+            );
+        }
+        return null;
+    }
+
+    @Override
+    public User findById(String id) {
+        // try numeric userid lookup first if id is numeric
+        try {
+            int numericId = Integer.parseInt(id);
+            Document doc = collection.find(new Document("userid", numericId)).first();
+            if (doc != null) {
+                Integer uid = doc.getInteger("userid");
+                int userid = uid != null ? uid : numericId;
+                return new User(userid,
+                        doc.getString("username"),
+                        doc.getString("phone_no"),
+                        doc.getString("profile_url"),
+                        doc.getString("end_to_end_Key"),
+                        doc.getString("created_at"),
+                        doc.getString("bio")
+                );
+            }
+        } catch (NumberFormatException ignored) {
+            // fall back to string id below
+        }
+
+        // fallback lookups (string id fields)
+        Document doc = collection.find(new Document("userid", id)).first();
+        if (doc == null) doc = collection.find(new Document("id", id)).first();
+        if (doc != null) {
+            Integer uid = doc.getInteger("userid");
+            int userid = uid != null ? uid : (doc.containsKey("id") ? Integer.parseInt(String.valueOf(doc.get("id"))) : 0);
             return new User(userid,
                     doc.getString("username"),
                     doc.getString("phone_no"),

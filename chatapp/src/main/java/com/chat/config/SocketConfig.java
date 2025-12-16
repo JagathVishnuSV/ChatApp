@@ -1,20 +1,27 @@
 package com.chat.config;
-
-/**
- * Minimal socket configuration holder. Kept tiny to avoid adding frameworks.
- */
 public class SocketConfig {
-	private static SocketConfig instance;
-	private int port = 8080;
+    private static SocketConfig instance;
+    private int port = 8080;
 
-	private SocketConfig() {}
+    private SocketConfig() {}
 
-	public static synchronized SocketConfig getInstance() {
-		if (instance == null) instance = new SocketConfig();
-		return instance;
-	}
+    public static synchronized SocketConfig getInstance() {
+        if (instance == null) {
+            instance = new SocketConfig();
 
-	public int getPort() { return port; }
+            // allow overriding port via system property or environment variable
+            String prop = System.getProperty("chat.port");
+            if (prop == null || prop.isEmpty()) prop = System.getenv("CHAT_PORT");
+            if (prop != null) {
+                try {
+                    instance.port = Integer.parseInt(prop);
+                } catch (NumberFormatException ignored) { /* keep default */ }
+            }
+        }
+        return instance;
+    }
 
-	public void setPort(int port) { this.port = port; }
+    public int getPort() { return port; }
+
+    public void setPort(int port) { this.port = port; }
 }
